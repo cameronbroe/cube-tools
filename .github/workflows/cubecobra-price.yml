@@ -1,0 +1,25 @@
+name: CubeCobra Cube Price Calculator
+
+on:
+  workflow_dispatch:
+    inputs:
+      cubecobra_link:
+        description: "CubeCobra cube link (e.g. https://cubecobra.com/cube/overview/my-cube)"
+        required: true
+        type: string
+
+jobs:
+  calculate-price:
+    name: Calculate Total Cube Price
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Calculate cube total cost
+        uses: ./cubecobra-price
+        with:
+          cubecobra_link: ${{ inputs.cubecobra_link }}
