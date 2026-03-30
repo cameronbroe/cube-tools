@@ -154,6 +154,12 @@ async function run() {
           priceMap.set(card.name.slice(0, slashIdx).toLowerCase(), price);
           priceMap.set(card.name.slice(slashIdx + 4).toLowerCase(), price);
         }
+        // Some cards have a flavor/alternate name (e.g. "Endwalker" for
+        // "Brainstorm"). Scryfall returns the canonical name but CubeCobra may
+        // store the flavor name, so index by it as well.
+        if (card.flavor_name) {
+          priceMap.set(card.flavor_name.toLowerCase(), price);
+        }
       } else {
         noPrice.push(card.name);
       }
