@@ -1,0 +1,198 @@
+name: CubeCobra Cube Price Calculator
+
+on:
+  workflow_dispatch:
+    inputs:
+      cubecobra_link:
+        description: "CubeCobra cube link (e.g. https://cubecobra.com/cube/overview/my-cube)"
+        required: true
+        type: string
+
+jobs:
+  calculate-price:
+    name: Calculate Total Cube Price
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Calculate cube total cost
+        run: |
+          python3 - <<'EOF'
+          import re
+          import sys
+          import json
+          import time
+          import urllib.request
+          import urllib.error
+
+          CUBECOBRA_LINK = "${{ inputs.cubecobra_link }}"
+
+          # ---------------------------------------------------------------------------
+          # 1. Parse the cube ID from the CubeCobra URL
+          # ---------------------------------------------------------------------------
+          # Accepted URL patterns:
+          #   https://cubecobra.com/cube/overview/<id>
+          #   https://cubecobra.com/cube/list/<id>
+          #   https://cubecobra.com/cube/<anything>/<id>
+          #   Just a bare cube ID with no domain
+          match = re.search(r'cubecobra\.com/cube/[^/]+/([^/?#]+)', CUBECOBRA_LINK)
+          if match:
+              cube_id = match.group(1)
+          else:
+              # Treat the whole input as a bare cube ID
+              cube_id = CUBECOBRA_LINK.strip().rstrip('/')
+              if '/' in cube_id or '.' in cube_id:
+                  print(f"ERROR: Could not parse a cube ID from: {CUBECOBRA_LINK}", file=sys.stderr)
+                  sys.exit(1)
+
+          print(f"Cube ID: {cube_id}")
+
+          # ---------------------------------------------------------------------------
+          # 2. Fetch the cube JSON from the CubeCobra API
+          # ---------------------------------------------------------------------------
+          api_url = f"https://cubecobra.com/cube/api/cubeJSON/{cube_id}"
+          print(f"Fetching cube data from: {api_url}")
+
+          req = urllib.request.Request(
+              api_url,
+              headers={"User-Agent": "cubecobra-price-action/1.0"}
+          )
+          try:
+              with urllib.request.urlopen(req, timeout=30) as resp:
+                  cube_data = json.loads(resp.read().decode())
+          except urllib.error.HTTPError as e:
+              print(f"ERROR: CubeCobra API returned HTTP {e.code} for cube ID '{cube_id}'.", file=sys.stderr)
+              sys.exit(1)
+          except urllib.error.URLError as e:
+              print(f"ERROR: Could not reach CubeCobra API: {e.reason}", file=sys.stderr)
+              sys.exit(1)
+
+          # ---------------------------------------------------------------------------
+          # 3. Extract mainboard card names
+          # ---------------------------------------------------------------------------
+          mainboard = cube_data.get("mainboard") or cube_data.get("cards", {}).get("mainboard", [])
+          if not mainboard:
+              print("ERROR: No mainboard cards found in the cube data.", file=sys.stderr)
+              sys.exit(1)
+
+          def extract_name(card_entry):
+              """Return the card name regardless of how deeply it is nested."""
+              if isinstance(card_entry, str):
+                  return card_entry
+              if isinstance(card_entry, dict):
+                  # Modern CubeCobra JSON format has 'details.name' inlined as 'name'
+                  for key in ("name", "details"):
+                      val = card_entry.get(key)
+                      if isinstance(val, str) and val:
+                          return val
+                      if isinstance(val, dict):
+                          inner = val.get("name")
+                          if inner:
+                              return inner
+              return None
+
+          card_names = []
+          for entry in mainboard:
+              name = extract_name(entry)
+              if name:
+                  card_names.append(name)
+              else:
+                  print(f"WARNING: Could not determine card name for entry: {entry}", file=sys.stderr)
+
+          print(f"Found {len(card_names)} mainboard cards.")
+
+          # ---------------------------------------------------------------------------
+          # 4. Batch-query Scryfall for prices (max 75 identifiers per request)
+          # ---------------------------------------------------------------------------
+          BATCH_SIZE = 75
+          SCRYFALL_COLLECTION_URL = "https://api.scryfall.com/cards/collection"
+
+          # Maps lowercased card name -> lowest paper price (float).
+          # Duplicate card names in a cube are fine: the price lookup is the same
+          # for every copy, and the summing loop below counts each copy separately.
+          price_map = {}
+          no_price = []   # found on Scryfall but all paper price fields are null
+          not_found = []  # Scryfall could not match the card name at all
+
+          def lowest_paper_price(prices: dict) -> float | None:
+              """Return the lowest non-None paper price for a card."""
+              candidates = [
+                  prices.get("usd"),
+                  prices.get("usd_foil"),
+                  prices.get("usd_etched"),
+              ]
+              values = [float(p) for p in candidates if p is not None]
+              return min(values) if values else None
+
+          for batch_start in range(0, len(card_names), BATCH_SIZE):
+              batch = card_names[batch_start: batch_start + BATCH_SIZE]
+              identifiers = [{"name": n} for n in batch]
+              payload = json.dumps({"identifiers": identifiers}).encode()
+
+              req = urllib.request.Request(
+                  SCRYFALL_COLLECTION_URL,
+                  data=payload,
+                  headers={
+                      "Content-Type": "application/json",
+                      "User-Agent": "cubecobra-price-action/1.0",
+                  },
+                  method="POST",
+              )
+              try:
+                  with urllib.request.urlopen(req, timeout=30) as resp:
+                      scryfall_data = json.loads(resp.read().decode())
+              except urllib.error.HTTPError as e:
+                  body = e.read().decode(errors="replace")
+                  print(f"ERROR: Scryfall API returned HTTP {e.code}: {body}", file=sys.stderr)
+                  sys.exit(1)
+
+              for card in scryfall_data.get("data", []):
+                  name_key = card["name"].lower()
+                  price = lowest_paper_price(card.get("prices", {}))
+                  if price is not None:
+                      price_map[name_key] = price
+                  else:
+                      no_price.append(card["name"])
+
+              for nf in scryfall_data.get("not_found", []):
+                  not_found.append(nf.get("name", str(nf)))
+
+              # Respect Scryfall's rate-limit (10 req/s recommended)
+              if batch_start + BATCH_SIZE < len(card_names):
+                  time.sleep(0.11)
+
+          # ---------------------------------------------------------------------------
+          # 5. Sum up the total cost
+          # ---------------------------------------------------------------------------
+          total = 0.0
+          unresolved = []   # not in price_map (either not found or no price data)
+
+          for name in card_names:
+              price = price_map.get(name.lower())
+              if price is not None:
+                  total += price
+              else:
+                  unresolved.append(name)
+
+          if not_found:
+              print("\nCards not found on Scryfall (excluded from total):")
+              for nf in not_found:
+                  print(f"  - {nf}")
+
+          if no_price:
+              print("\nCards found on Scryfall but with no paper price data (excluded from total):")
+              for np in no_price:
+                  print(f"  - {np}")
+
+          if unresolved:
+              print("\nCards excluded from total (no price available):")
+              for u in unresolved:
+                  print(f"  - {u}")
+
+          print(f"\n{'='*50}")
+          print(f"Cube:          {cube_id}")
+          print(f"Cards priced:  {len(card_names) - len(unresolved)} / {len(card_names)}")
+          print(f"Total cost:    ${total:,.2f} USD")
+          print(f"{'='*50}")
+          EOF
