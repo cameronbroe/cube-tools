@@ -31010,12 +31010,14 @@ async function run() {
       const price = lowestPaperPrice(card.prices || {});
       if (price !== null) {
         priceMap.set(card.name.toLowerCase(), price);
-        // For double-faced cards, also index by the front-face name so that
-        // lookups using either the full "Front // Back" form or just "Front"
-        // will resolve correctly (CubeCobra often stores only the front face).
+        // For double-faced / split / adventure cards, also index by each
+        // individual face name so that lookups using either the full
+        // "Front // Back" form, just "Front", or just "Back" all resolve
+        // correctly (CubeCobra may store only the front face or the back face).
         const slashIdx = card.name.indexOf(' // ');
         if (slashIdx !== -1) {
           priceMap.set(card.name.slice(0, slashIdx).toLowerCase(), price);
+          priceMap.set(card.name.slice(slashIdx + 4).toLowerCase(), price);
         }
       } else {
         noPrice.push(card.name);
