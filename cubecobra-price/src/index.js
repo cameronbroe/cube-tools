@@ -145,6 +145,13 @@ async function run() {
       const price = lowestPaperPrice(card.prices || {});
       if (price !== null) {
         priceMap.set(card.name.toLowerCase(), price);
+        // For double-faced cards, also index by the front-face name so that
+        // lookups using either the full "Front // Back" form or just "Front"
+        // will resolve correctly (CubeCobra often stores only the front face).
+        const slashIdx = card.name.indexOf(' // ');
+        if (slashIdx !== -1) {
+          priceMap.set(card.name.slice(0, slashIdx).toLowerCase(), price);
+        }
       } else {
         noPrice.push(card.name);
       }
