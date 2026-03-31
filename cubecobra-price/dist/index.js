@@ -30921,6 +30921,56 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * Fallback resolution for a single card name that the collection endpoint
+ * could not match.  Two strategies are attempted in order:
+ *
+ *   1. /cards/named?fuzzy=<name> — handles Room cards whose full "A // B"
+ *      oracle name may not be matched by the collection endpoint, as well as
+ *      minor name variations.
+ *   2. /cards/search?q=flavor_name:"<name>" — handles Universes Beyond /
+ *      Secret Lair cards (e.g. "Endwalker", "Vaan, Aspiring Sky Pirate") that
+ *      are stored in CubeCobra by their displayed flavor name rather than the
+ *      Scryfall oracle name.
+ *
+ * Returns the lowest paper price (number) on success, or null if the card
+ * still cannot be resolved.
+ */
+async function resolveNotFound(name) {
+  // Strategy 1: fuzzy named lookup
+  try {
+    const resp = await fetch(
+      `https://api.scryfall.com/cards/named?fuzzy=${encodeURIComponent(name)}`,
+      { headers: { 'User-Agent': USER_AGENT } },
+    );
+    if (resp.ok) {
+      const card = await resp.json();
+      return lowestPaperPrice(card.prices || {});
+    }
+  } catch (_) {
+    // fall through to strategy 2
+  }
+
+  // Strategy 2: flavor-name search (Universes Beyond / Secret Lair alternate names)
+  try {
+    await sleep(110);
+    const resp = await fetch(
+      `https://api.scryfall.com/cards/search?q=${encodeURIComponent(`flavor_name:"${name}"`)}`,
+      { headers: { 'User-Agent': USER_AGENT } },
+    );
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data.data && data.data.length > 0) {
+        return lowestPaperPrice(data.data[0].prices || {});
+      }
+    }
+  } catch (_) {
+    // nothing more to try
+  }
+
+  return null;
+}
+
 async function run() {
   const cubecobraLink = getInput('cubecobra_link', { required: true });
 
@@ -31039,6 +31089,28 @@ async function run() {
       await sleep(110);
     }
   }
+
+  // 4b. Fallback: individually resolve names the collection endpoint could not
+  //     match (e.g. Room card full names, Universes Beyond flavor names).
+  //     Deduplicate so we only attempt each unique name once.
+  const attempted = new Set();
+  const trulyNotFound = [];
+  for (const nfName of notFound) {
+    const lc = nfName.toLowerCase();
+    if (priceMap.has(lc) || attempted.has(lc)) {
+      continue;
+    }
+    attempted.add(lc);
+    await sleep(110);
+    const price = await resolveNotFound(nfName);
+    if (price !== null) {
+      priceMap.set(lc, price);
+    } else {
+      trulyNotFound.push(nfName);
+    }
+  }
+  notFound.length = 0;
+  notFound.push(...trulyNotFound);
 
   // 5. Sum up the total cost
   let total = 0;
