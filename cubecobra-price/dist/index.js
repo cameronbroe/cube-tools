@@ -30868,6 +30868,7 @@ function getIDToken(aud) {
 const BATCH_SIZE = 75;
 const SCRYFALL_COLLECTION_URL = 'https://api.scryfall.com/cards/collection';
 const USER_AGENT = 'cubecobra-price-action/1.0';
+const EXPENSIVE_THRESHOLD_USD = 5;
 
 /**
  * Parse the cube ID from a CubeCobra URL or a bare ID.
@@ -31115,11 +31116,18 @@ async function run() {
   // 5. Sum up the total cost
   let total = 0;
   const unresolved = [];
+  const expensiveCards = []; // cards whose cheapest printing exceeds $5
+  const seenExpensive = new Set();
 
   for (const name of cardNames) {
-    const price = priceMap.get(name.toLowerCase());
+    const nameLc = name.toLowerCase();
+    const price = priceMap.get(nameLc);
     if (price != null) {
       total += price;
+      if (price > EXPENSIVE_THRESHOLD_USD && !seenExpensive.has(nameLc)) {
+        seenExpensive.add(nameLc);
+        expensiveCards.push({ name, price });
+      }
     } else {
       unresolved.push(name);
     }
@@ -31138,6 +31146,12 @@ async function run() {
   if (unresolved.length > 0) {
     info('\nCards excluded from total (no price available):');
     for (const u of unresolved) info(`  - ${u}`);
+  }
+
+  if (expensiveCards.length > 0) {
+    expensiveCards.sort((a, b) => b.price - a.price);
+    info(`\nCards above $${EXPENSIVE_THRESHOLD_USD.toFixed(2)} USD (cheapest printing):`);
+    for (const { name, price } of expensiveCards) info(`  - ${name}: $${price.toFixed(2)}`);
   }
 
   const separator = '='.repeat(50);
