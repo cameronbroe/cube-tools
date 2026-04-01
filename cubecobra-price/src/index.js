@@ -3,6 +3,7 @@ import * as core from '@actions/core';
 const BATCH_SIZE = 75;
 const SCRYFALL_COLLECTION_URL = 'https://api.scryfall.com/cards/collection';
 const USER_AGENT = 'cubecobra-price-action/1.0';
+const EXPENSIVE_THRESHOLD_USD = 5;
 
 /**
  * Parse the cube ID from a CubeCobra URL or a bare ID.
@@ -254,11 +255,12 @@ async function run() {
   const seenExpensive = new Set();
 
   for (const name of cardNames) {
-    const price = priceMap.get(name.toLowerCase());
+    const nameLc = name.toLowerCase();
+    const price = priceMap.get(nameLc);
     if (price != null) {
       total += price;
-      if (price > 5 && !seenExpensive.has(name.toLowerCase())) {
-        seenExpensive.add(name.toLowerCase());
+      if (price > EXPENSIVE_THRESHOLD_USD && !seenExpensive.has(nameLc)) {
+        seenExpensive.add(nameLc);
         expensiveCards.push({ name, price });
       }
     } else {
@@ -283,7 +285,7 @@ async function run() {
 
   if (expensiveCards.length > 0) {
     expensiveCards.sort((a, b) => b.price - a.price);
-    core.info('\nCards above $5.00 USD (cheapest printing):');
+    core.info(`\nCards above $${EXPENSIVE_THRESHOLD_USD.toFixed(2)} USD (cheapest printing):`);
     for (const { name, price } of expensiveCards) core.info(`  - ${name}: $${price.toFixed(2)}`);
   }
 
