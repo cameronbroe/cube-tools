@@ -250,11 +250,17 @@ async function run() {
   // 5. Sum up the total cost
   let total = 0;
   const unresolved = [];
+  const expensiveCards = []; // cards whose cheapest printing exceeds $5
+  const seenExpensive = new Set();
 
   for (const name of cardNames) {
     const price = priceMap.get(name.toLowerCase());
     if (price != null) {
       total += price;
+      if (price > 5 && !seenExpensive.has(name.toLowerCase())) {
+        seenExpensive.add(name.toLowerCase());
+        expensiveCards.push({ name, price });
+      }
     } else {
       unresolved.push(name);
     }
@@ -273,6 +279,12 @@ async function run() {
   if (unresolved.length > 0) {
     core.info('\nCards excluded from total (no price available):');
     for (const u of unresolved) core.info(`  - ${u}`);
+  }
+
+  if (expensiveCards.length > 0) {
+    expensiveCards.sort((a, b) => b.price - a.price);
+    core.info('\nCards above $5.00 USD (cheapest printing):');
+    for (const { name, price } of expensiveCards) core.info(`  - ${name}: $${price.toFixed(2)}`);
   }
 
   const separator = '='.repeat(50);
