@@ -58,6 +58,31 @@ function sleep(ms) {
 }
 
 /**
+ * Fallback resolution for a card that was found on Scryfall but had no paper
+ * price on the returned printing.  Searches for the exact card name restricted
+ * to paper-only printings and returns the lowest available price, or null if
+ * none exist.
+ */
+async function resolveNoPaperPrice(name) {
+  try {
+    const resp = await fetch(
+      `https://api.scryfall.com/cards/search?q=${encodeURIComponent(`!"${name}" game:paper`)}&order=usd`,
+      { headers: { 'User-Agent': USER_AGENT } },
+    );
+    if (resp.ok) {
+      const data = await resp.json();
+      for (const card of data.data || []) {
+        const price = lowestPaperPrice(card.prices || {});
+        if (price !== null) return price;
+      }
+    }
+  } catch (_) {
+    // nothing more to try
+  }
+  return null;
+}
+
+/**
  * Fallback resolution for a single card name that the collection endpoint
  * could not match.  Two strategies are attempted in order:
  *
@@ -247,6 +272,36 @@ async function run() {
   }
   notFound.length = 0;
   notFound.push(...trulyNotFound);
+
+  // 4c. Fallback: for cards found on Scryfall but with no paper price, search
+  //     specifically for a paper-only printing.  This handles cases where the
+  //     collection endpoint's default printing is digital-only or a promo with
+  //     no paper price data.
+  const noPriceAttempted = new Set();
+  const trulyNoPrice = [];
+  for (const npName of noPrice) {
+    const lc = npName.toLowerCase();
+    if (priceMap.has(lc) || noPriceAttempted.has(lc)) {
+      if (!priceMap.has(lc)) trulyNoPrice.push(npName);
+      continue;
+    }
+    noPriceAttempted.add(lc);
+    await sleep(110);
+    const price = await resolveNoPaperPrice(npName);
+    if (price !== null) {
+      priceMap.set(lc, price);
+      // Also index individual face names for double-faced cards
+      const slashIdx = npName.indexOf(' // ');
+      if (slashIdx !== -1) {
+        priceMap.set(npName.slice(0, slashIdx).toLowerCase(), price);
+        priceMap.set(npName.slice(slashIdx + 4).toLowerCase(), price);
+      }
+    } else {
+      trulyNoPrice.push(npName);
+    }
+  }
+  noPrice.length = 0;
+  noPrice.push(...trulyNoPrice);
 
   // 5. Sum up the total cost
   let total = 0;
