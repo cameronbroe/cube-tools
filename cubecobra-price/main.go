@@ -20,4 +20,13 @@ func main() {
 
 	fmt.Printf("%v\n", cube)
 	fmt.Printf("total cards: %d\n", len(cube.Cards.Mainboard))
+
+	firstCard := cube.Cards.Mainboard[0]
+	scryfallDetails, err := GetScryfallDetails(firstCard)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("%+v\n", scryfallDetails)
 }

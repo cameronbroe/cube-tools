@@ -7,25 +7,25 @@ import (
 	"net/url"
 )
 
-const apiBaseURL = "https://cubecobra.com/cube/api/cubeJSON"
+const cubeCobraBaseAPIURL = "https://cubecobra.com/cube/api/cubeJSON"
 
-type Cube struct {
+type CubeCobraCube struct {
 	Name  string `json:"name"`
 	Cards struct {
-		Mainboard  []Card `json:"mainboard"`
-		Maybeboard []Card `json:"maybeboard"`
+		Mainboard  []CubeCobraCard `json:"mainboard"`
+		Maybeboard []CubeCobraCard `json:"maybeboard"`
 	} `json:"cards"`
 }
 
-type Card struct {
+type CubeCobraCard struct {
 	Details struct {
 		Name       string `json:"name"`
 		ScryfallID string `json:"scryfall_id"`
 	}
 }
 
-func GetCube(cubeID string) (*Cube, error) {
-	cubeAPIURL, err := url.JoinPath(apiBaseURL, cubeID)
+func GetCube(cubeID string) (*CubeCobraCube, error) {
+	cubeAPIURL, err := url.JoinPath(cubeCobraBaseAPIURL, cubeID)
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +41,7 @@ func GetCube(cubeID string) (*Cube, error) {
 		return nil, err
 	}
 
-	var cube Cube
+	var cube CubeCobraCube
 	err = json.Unmarshal(body, &cube)
 	if err != nil {
 		return nil, err
