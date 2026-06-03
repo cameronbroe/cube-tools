@@ -1,4 +1,9 @@
-FROM ubuntu:latest
+FROM golang:1.26.4 AS build
 LABEL authors="cameronroe"
 
-ENTRYPOINT ["top", "-b"]
+WORKDIR /project
+COPY . .
+RUN go mod download
+RUN go build -o app ./...
+
+ENTRYPOINT ["/project/app"]
