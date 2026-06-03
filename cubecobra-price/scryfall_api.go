@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -92,13 +91,15 @@ func getScryfallPrintSearch(card *ScryfallCard) ([]ScryfallCard, error) {
 }
 
 func isValidPrinting(card *ScryfallCard) bool {
-	fmt.Printf("%+v\n", card)
-
 	if card.Oversized {
 		return false
 	}
 
 	if card.Digital {
+		return false
+	}
+
+	if card.Prices.Normal == "" && card.Prices.Foil == "" {
 		return false
 	}
 
