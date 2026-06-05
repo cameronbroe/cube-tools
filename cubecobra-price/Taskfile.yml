@@ -3,6 +3,7 @@
 version: '3'
 
 vars:
+  BINARY_PATH: './cubecobra-price-checker'
   DEFAULT_BULK_DATA_API_URL: "https://api.scryfall.com/bulk-data/default-cards"
   DEFAULT_BULK_DATA_PATH: DefaultCards.json
   DEFAULT_BULK_DATA_API_CONTENTS:
@@ -16,8 +17,13 @@ tasks:
     sources:
       - '*.go'
     generates:
-      - ./cubecobra-price-checker
-    cmd: go build -o cubecobra-price-checker ./...
+      - "{{ .BINARY_PATH }}"
+    cmd: go build -o "{{ .BINARY_PATH }}" ./...
+  run:
+    deps: [build]
+    requires:
+      vars: [CUBE_ID]
+    cmd: "{{ .BINARY_PATH }} {{ .CUBE_ID }}"
   download-data:
     status:
       - test $(find {{ .DEFAULT_BULK_DATA_PATH }} -mmin +720)
