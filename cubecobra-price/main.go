@@ -75,7 +75,7 @@ func outputSummary(minimumCubeCost float64, cardsAboveFiveBucks []*ScryfallCard)
 	}
 
 	err = summaryTemplate.Execute(os.Stdout, &summary{
-		TotalMinimumCost:    fmt.Sprintf("%.2f", minimumCubeCost),
+		TotalMinimumCost:    fmt.Sprintf("$%.2f", minimumCubeCost),
 		CardsAboveFiveBucks: cardsAboveFiveBucks,
 	})
 
