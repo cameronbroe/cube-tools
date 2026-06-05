@@ -5,7 +5,6 @@ import (
 	"os"
 	"slices"
 	"strconv"
-	"time"
 )
 
 func cheapestTreatmentPrice(card *ScryfallCard) (float64, error) {
@@ -91,7 +90,5 @@ func main() {
 		}
 
 		fmt.Printf("%d: %+v\n", i, *cheapestPrinting)
-
-		time.Sleep(1 * time.Second) // stay within Scryfall API rate limits
 	}
 }

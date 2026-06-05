@@ -2,15 +2,40 @@ package main
 
 import (
 	"encoding/json"
-	"io"
-	"net/http"
-	"net/url"
+	"fmt"
+	"os"
 )
 
-const scryfallBaseAPIURL = "https://api.scryfall.com/cards"
+const dataFilePath = "./DefaultCards.json"
+
+type ScryfallBulkData []*ScryfallCard
+
+var bulkData ScryfallBulkData
+
+func (s ScryfallBulkData) Len() int { return len(s) }
+
+func (s ScryfallBulkData) FindCardById(id string) (*ScryfallCard, error) {
+	for _, card := range s {
+		if card.ID == id {
+			return card, nil
+		}
+	}
+	return nil, fmt.Errorf("could not find card with ID: %s", id)
+}
+
+func (s ScryfallBulkData) FindCardsByOracleID(oracleID string) ([]*ScryfallCard, error) {
+	var cards []*ScryfallCard
+	for _, card := range s {
+		if card.OracleID == oracleID {
+			cards = append(cards, card)
+		}
+	}
+	return cards, nil
+}
 
 type ScryfallCard struct {
 	ID              string `json:"id"`
+	OracleID        string `json:"oracle_id"`
 	URL             string `json:"scryfall_uri"`
 	PrintsSearchURL string `json:"prints_search_uri"`
 	Name            string `json:"name"`
@@ -27,67 +52,26 @@ type ScryfallCard struct {
 	} `json:"prices"`
 }
 
-func getScryfallCard(card CubeCobraCard) (*ScryfallCard, error) {
-	scryfallCardAPIURL, err := url.JoinPath(scryfallBaseAPIURL, card.Details.ScryfallID)
+func loadScryfallCards() error {
+	fileContents, err := os.ReadFile(dataFilePath)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	req, err := http.NewRequest(http.MethodGet, scryfallCardAPIURL, nil)
+	err = json.Unmarshal(fileContents, &bulkData)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	req.Header.Add("Accept", "application/json")
-	req.Header.Add("User-Agent", "cubecobra-price-checker/1.0")
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	var scryfallCard ScryfallCard
-	if err := json.Unmarshal(body, &scryfallCard); err != nil {
-		return nil, err
-	}
-	return &scryfallCard, nil
+	return nil
 }
 
-func getScryfallPrintSearch(card *ScryfallCard) ([]ScryfallCard, error) {
-	req, err := http.NewRequest(http.MethodGet, card.PrintsSearchURL, nil)
-	if err != nil {
-		return nil, err
-	}
+func getScryfallCard(card CubeCobraCard) (*ScryfallCard, error) {
+	return bulkData.FindCardById(card.Details.ScryfallID)
+}
 
-	req.Header.Add("Accept", "application/json")
-	req.Header.Add("User-Agent", "cubecobra-price-checker/1.0")
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	type printSearchResponse struct {
-		Data []ScryfallCard `json:"data"`
-	}
-
-	var parsedResponse printSearchResponse
-	if err := json.Unmarshal(body, &parsedResponse); err != nil {
-		return nil, err
-	}
-	return parsedResponse.Data, nil
+func getAllPrintings(card *ScryfallCard) ([]*ScryfallCard, error) {
+	return bulkData.FindCardsByOracleID(card.OracleID)
 }
 
 func isValidPrinting(card *ScryfallCard) bool {
@@ -109,14 +93,14 @@ func isValidPrinting(card *ScryfallCard) bool {
 func getAllValidPrintings(card *ScryfallCard) ([]*ScryfallCard, error) {
 	var validPrintings []*ScryfallCard
 
-	allPrintings, err := getScryfallPrintSearch(card)
+	allPrintings, err := getAllPrintings(card)
 	if err != nil {
 		return nil, err
 	}
 
 	for _, printing := range allPrintings {
-		if isValidPrinting(&printing) {
-			validPrintings = append(validPrintings, &printing)
+		if isValidPrinting(printing) {
+			validPrintings = append(validPrintings, printing)
 		}
 	}
 
@@ -124,6 +108,11 @@ func getAllValidPrintings(card *ScryfallCard) ([]*ScryfallCard, error) {
 }
 
 func GetScryfallDetails(card CubeCobraCard) ([]*ScryfallCard, error) {
+	err := loadScryfallCards()
+	if err != nil {
+		return nil, err
+	}
+
 	var scryfallCards []*ScryfallCard
 
 	baseScryfallCard, err := getScryfallCard(card)
