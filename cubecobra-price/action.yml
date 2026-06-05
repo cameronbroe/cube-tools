@@ -4,8 +4,7 @@ description: Fetches a CubeCobra cube's mainboard and calculates the total paper
 inputs:
   cube_id:
     description: "CubeCobra cube ID"
-    required: false
-    default: "d8b9e896-d66d-4cf8-9c59-f752d78d27ac"
+    required: true
 
 runs:
   using: composite
