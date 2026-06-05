@@ -6,6 +6,7 @@ import (
 	"os"
 	"slices"
 	"strconv"
+	"text/template"
 )
 
 func cheapestTreatmentPrice(card *ScryfallCard) (float64, error) {
@@ -57,6 +58,32 @@ func cheapestPrinting(printings []*ScryfallCard) (*ScryfallCard, error) {
 	}
 
 	return currentCheapest, nil
+}
+
+func outputSummary(minimumCubeCost float64, cardsAboveFiveBucks []*ScryfallCard) error {
+	type summary struct {
+		TotalMinimumCost    string
+		CardsAboveFiveBucks []*ScryfallCard
+	}
+
+	summaryTemplate, err := template.
+		New("summary.md.tmpl").
+		ParseFiles("summary.md.tmpl")
+
+	if err != nil {
+		return err
+	}
+
+	err = summaryTemplate.Execute(os.Stdout, &summary{
+		TotalMinimumCost:    fmt.Sprintf("%.2f", minimumCubeCost),
+		CardsAboveFiveBucks: cardsAboveFiveBucks,
+	})
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func main() {
@@ -111,13 +138,9 @@ func main() {
 		minimumCubeCost += printingMinimumCost
 	}
 
-	fmt.Printf("Total minimum cost of cube: $%.2f\n", minimumCubeCost)
-	fmt.Println("=== Cards Above $5 ===")
-	if len(cardsAboveFiveBucks) > 0 {
-		for _, card := range cardsAboveFiveBucks {
-			fmt.Printf("%s (%s)\n", card.Name, card.URL)
-		}
-	} else {
-		fmt.Println("No cards above $5!")
+	err = outputSummary(minimumCubeCost, cardsAboveFiveBucks)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
 	}
 }

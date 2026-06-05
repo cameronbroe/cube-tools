@@ -13,8 +13,13 @@ runs:
       uses: go-task/setup-task@v1
 
     - name: Run CubeCobra price checker
-      run: task run-docker CUBE_ID=${CUBE_ID}
+      run: task -s run-docker CUBE_ID=${CUBE_ID}
       shell: bash
       working-directory: ./cubecobra-price
       env:
         CUBE_ID: ${{ inputs.cube_id }}
+
+    - name: Output summary
+      run: cat summary.md >> $GITHUB_STEP_SUMMARY
+      working-directory: ./cubecobra-price
+      shell: bash

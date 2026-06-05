@@ -1,0 +1,10 @@
+## Cube Cost Analysis
+
+### Total Minimum Cost of Cube: {{ .TotalMinimumCost }}
+
+### Cards Above $5
+{{ range .CardsAboveFiveBucks }}
+* {{ .Name }} - {{ .URL }}
+{{ else }}
+No cards above $5!
+{{ end }}

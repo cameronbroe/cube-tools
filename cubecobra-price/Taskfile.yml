@@ -32,5 +32,5 @@ tasks:
     cmd: docker build -t cubecobra-price-checker .
   run-docker:
     deps: [build-docker]
-    cmd: docker run cubecobra-price-checker {{ .CUBE_ID }}
+    cmd: docker run cubecobra-price-checker {{ .CUBE_ID }} > summary.md
     
