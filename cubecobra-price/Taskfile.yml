@@ -1,0 +1,28 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
+version: '3'
+
+vars:
+  DEFAULT_BULK_DATA_API_URL: "https://api.scryfall.com/bulk-data/default-cards"
+  DEFAULT_BULK_DATA_PATH: DefaultCards.json
+  DEFAULT_BULK_DATA_API_CONTENTS:
+    sh: curl -s {{ .DEFAULT_BULK_DATA_API_URL }}
+  DEFAULT_BULK_DATA_API_CONTENTS_PARSED:
+    ref: 'fromJson .DEFAULT_BULK_DATA_API_CONTENTS'
+
+tasks:
+  build:
+    aliases: [default]
+    cmd: go build -o cubecobra-price-checker ./...
+  download-data:
+    status:
+      - test $(find {{ .DEFAULT_BULK_DATA_PATH }} -mmin +720)
+    cmd: curl -o {{ .DEFAULT_BULK_DATA_PATH }} {{ .DEFAULT_BULK_DATA_API_CONTENTS_PARSED.download_uri }}
+  build-docker:
+    cmd: docker build -t cubecobra-price-checker .
+  run-docker:
+    deps: [download-data, build-docker]
+    requires:
+      vars: [CUBE_ID]
+    cmd: docker run cubecobra-price-checker {{ .CUBE_ID }}
+    
