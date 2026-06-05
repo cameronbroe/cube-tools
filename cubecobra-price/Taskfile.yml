@@ -20,18 +20,19 @@ tasks:
       - "{{ .BINARY_PATH }}"
     cmd: go build -o "{{ .BINARY_PATH }}" ./...
   run:
-    deps: [build]
+    deps: [download-data, build]
     requires:
       vars: [CUBE_ID]
     cmd: "{{ .BINARY_PATH }} {{ .CUBE_ID }}"
   download-data:
     status:
-      - test $(find {{ .DEFAULT_BULK_DATA_PATH }} -mmin +720)
+      - test -f {{ .DEFAULT_BULK_DATA_PATH }} && test ! $(find {{ .DEFAULT_BULK_DATA_PATH }} -mmin +720)
     cmd: curl -o {{ .DEFAULT_BULK_DATA_PATH }} {{ .DEFAULT_BULK_DATA_API_CONTENTS_PARSED.download_uri }}
   build-docker:
+    deps: [download-data]
     cmd: docker build -t cubecobra-price-checker .
   run-docker:
-    deps: [download-data, build-docker]
+    deps: [build-docker]
     requires:
       vars: [CUBE_ID]
     cmd: docker run cubecobra-price-checker {{ .CUBE_ID }}

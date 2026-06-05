@@ -2,12 +2,19 @@ name: CubeCobra Cube Price Calculator
 description: Fetches a CubeCobra cube's mainboard and calculates the total paper cost using Scryfall price data.
 
 inputs:
-  cubecobra_link:
-    description: "CubeCobra cube link (e.g. https://cubecobra.com/cube/overview/my-cube) or bare cube ID"
+  cube_id:
+    description: "CubeCobra cube ID"
     required: true
 
 runs:
-  using: docker
-  image: Dockerfile
-  args:
-    - ${{ inputs.cubecobra_link }}
+  using: composite
+  steps:
+    - name: Install Task
+      uses: go-task/setup-task@v1
+
+    - name: Run CubeCobra price checker
+      run: task run-docker CUBE_ID=${CUBE_ID}
+      shell: bash
+      working-directory: ./cubecobra-price
+      env:
+        CUBE_ID: ${{ inputs.cube_id }}
