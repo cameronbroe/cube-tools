@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"slices"
 	"strconv"
@@ -71,7 +72,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	for i, card := range cube.Cards.Mainboard {
+	minimumCubeCost := 0.00
+	var cardsAboveFiveBucks []*ScryfallCard
+	for _, card := range cube.Cards.Mainboard {
 		scryfallCards, err := GetScryfallDetails(card)
 		if err != nil {
 			fmt.Println(err)
@@ -89,6 +92,32 @@ func main() {
 			os.Exit(1)
 		}
 
-		fmt.Printf("%d: %+v\n", i, *cheapestPrinting)
+		normalPrice, _ := strconv.ParseFloat(cheapestPrinting.Prices.Normal, 32)
+		foilPrice, _ := strconv.ParseFloat(cheapestPrinting.Prices.Foil, 32)
+		// Account for when a printing is only available in one treatment
+		var printingMinimumCost float64
+		if cheapestPrinting.Prices.Normal == "" {
+			printingMinimumCost = foilPrice
+		} else if cheapestPrinting.Prices.Foil == "" {
+			printingMinimumCost = normalPrice
+		} else {
+			printingMinimumCost = math.Min(normalPrice, foilPrice)
+		}
+
+		if printingMinimumCost > 5.00 {
+			cardsAboveFiveBucks = append(cardsAboveFiveBucks, cheapestPrinting)
+		}
+
+		minimumCubeCost += printingMinimumCost
+	}
+
+	fmt.Printf("Total minimum cost of cube: $%.2f\n", minimumCubeCost)
+	fmt.Println("=== Cards Above $5 ===")
+	if len(cardsAboveFiveBucks) > 0 {
+		for _, card := range cardsAboveFiveBucks {
+			fmt.Printf("%s (%s)\n", card.Name, card.URL)
+		}
+	} else {
+		fmt.Println("No cards above $5!")
 	}
 }
