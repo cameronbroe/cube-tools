@@ -13,6 +13,10 @@ vars:
 tasks:
   build:
     aliases: [default]
+    sources:
+      - '*.go'
+    generates:
+      - ./cubecobra-price-checker
     cmd: go build -o cubecobra-price-checker ./...
   download-data:
     status:
