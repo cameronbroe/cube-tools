@@ -11,24 +11,28 @@ const dataFilePath = "./DefaultCards.json"
 type ScryfallBulkData []*ScryfallCard
 
 var bulkData ScryfallBulkData
+var bulkDataLoaded bool = false
+
+var bulkDataIDToOracleIDMap map[string]string
+var bulkDataIDToOracleIDMapLoaded bool = false
+
+var bulkDataOracleIDToCardsMap map[string][]*ScryfallCard
+var bulkDataOracleIDToCardsMapLoaded bool = false
 
 func (s ScryfallBulkData) Len() int { return len(s) }
 
-func (s ScryfallBulkData) FindCardById(id string) (*ScryfallCard, error) {
-	for _, card := range s {
-		if card.ID == id {
-			return card, nil
-		}
+func (s ScryfallBulkData) FindOracleIDByID(id string) (string, error) {
+	oracleID, ok := bulkDataIDToOracleIDMap[id]
+	if !ok {
+		return "", fmt.Errorf("could not find card with ID: %s", id)
 	}
-	return nil, fmt.Errorf("could not find card with ID: %s", id)
+	return oracleID, nil
 }
 
 func (s ScryfallBulkData) FindCardsByOracleID(oracleID string) ([]*ScryfallCard, error) {
-	var cards []*ScryfallCard
-	for _, card := range s {
-		if card.OracleID == oracleID {
-			cards = append(cards, card)
-		}
+	cards, ok := bulkDataOracleIDToCardsMap[oracleID]
+	if !ok {
+		return nil, fmt.Errorf("could not find cards with oracle ID: %s", oracleID)
 	}
 	return cards, nil
 }
@@ -53,6 +57,10 @@ type ScryfallCard struct {
 }
 
 func loadScryfallCards() error {
+	if bulkDataLoaded {
+		return nil
+	}
+
 	fileContents, err := os.ReadFile(dataFilePath)
 	if err != nil {
 		return err
@@ -63,15 +71,56 @@ func loadScryfallCards() error {
 		return err
 	}
 
+	bulkDataLoaded = true
 	return nil
 }
 
-func getScryfallCard(card CubeCobraCard) (*ScryfallCard, error) {
-	return bulkData.FindCardById(card.Details.ScryfallID)
+func buildIDToOracleIDMap() error {
+	if bulkDataIDToOracleIDMapLoaded {
+		return nil
+	}
+
+	if len(bulkData) == 0 {
+		return fmt.Errorf("load Scryfall bulk data first")
+	}
+
+	bulkDataIDToOracleIDMap = make(map[string]string)
+	for _, card := range bulkData {
+		bulkDataIDToOracleIDMap[card.ID] = card.OracleID
+	}
+
+	bulkDataIDToOracleIDMapLoaded = true
+	return nil
 }
 
-func getAllPrintings(card *ScryfallCard) ([]*ScryfallCard, error) {
-	return bulkData.FindCardsByOracleID(card.OracleID)
+func buildOracleIDToCardsMap() error {
+	if bulkDataOracleIDToCardsMapLoaded {
+		return nil
+	}
+
+	if len(bulkData) == 0 {
+		return fmt.Errorf("load Scryfall bulk data first")
+	}
+
+	bulkDataOracleIDToCardsMap = make(map[string][]*ScryfallCard)
+	for _, card := range bulkData {
+		if bulkDataOracleIDToCardsMap[card.OracleID] == nil {
+			bulkDataOracleIDToCardsMap[card.OracleID] = []*ScryfallCard{}
+		}
+
+		bulkDataOracleIDToCardsMap[card.OracleID] = append(bulkDataOracleIDToCardsMap[card.OracleID], card)
+	}
+
+	bulkDataOracleIDToCardsMapLoaded = true
+	return nil
+}
+
+func getOracleID(card CubeCobraCard) (string, error) {
+	return bulkData.FindOracleIDByID(card.Details.ScryfallID)
+}
+
+func getAllPrintings(oracleID string) ([]*ScryfallCard, error) {
+	return bulkData.FindCardsByOracleID(oracleID)
 }
 
 func isValidPrinting(card *ScryfallCard) bool {
@@ -90,10 +139,10 @@ func isValidPrinting(card *ScryfallCard) bool {
 	return true
 }
 
-func getAllValidPrintings(card *ScryfallCard) ([]*ScryfallCard, error) {
+func getAllValidPrintings(oracleID string) ([]*ScryfallCard, error) {
 	var validPrintings []*ScryfallCard
 
-	allPrintings, err := getAllPrintings(card)
+	allPrintings, err := getAllPrintings(oracleID)
 	if err != nil {
 		return nil, err
 	}
@@ -113,12 +162,22 @@ func GetScryfallDetails(card CubeCobraCard) ([]*ScryfallCard, error) {
 		return nil, err
 	}
 
+	err = buildIDToOracleIDMap()
+	if err != nil {
+		return nil, err
+	}
+
+	err = buildOracleIDToCardsMap()
+	if err != nil {
+		return nil, err
+	}
+
 	var scryfallCards []*ScryfallCard
 
-	baseScryfallCard, err := getScryfallCard(card)
+	oracleID, err := getOracleID(card)
 	if err != nil {
 		return scryfallCards, err
 	}
 
-	return getAllValidPrintings(baseScryfallCard)
+	return getAllValidPrintings(oracleID)
 }
