@@ -88,7 +88,7 @@ func outputSummary(minimumCubeCost float64, cardsAboveFiveBucks []*ScryfallCard)
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Println("Usage: cubecobra-price [cube-url]")
+		fmt.Println("Usage: cubecobra-price-checker [cube-url]")
 		os.Exit(1)
 	}
 

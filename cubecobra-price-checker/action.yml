@@ -15,11 +15,11 @@ runs:
     - name: Run CubeCobra price checker
       run: task -s run-docker CUBE_ID=${CUBE_ID}
       shell: bash
-      working-directory: ./cubecobra-price
+      working-directory: ./cubecobra-price-checker
       env:
         CUBE_ID: ${{ inputs.cube_id }}
 
     - name: Output summary
       run: cat summary.md >> $GITHUB_STEP_SUMMARY
-      working-directory: ./cubecobra-price
+      working-directory: ./cubecobra-price-checker
       shell: bash

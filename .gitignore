@@ -2,6 +2,6 @@
 **/.idea
 .task/
 
-cubecobra-price/DefaultCards.json
-cubecobra-price/cubecobra-price-checker
+cubecobra-price-checker/DefaultCards.json
+cubecobra-price-checker/cubecobra-price-checker
 summary.md
