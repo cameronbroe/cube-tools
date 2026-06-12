@@ -14,7 +14,7 @@ A GitHub Action that fetches a [CubeCobra](https://cubecobra.com) cube's mainboa
 
 ```yaml
 - name: Calculate cube price
-  uses: cameronbroe/misc-actions/cubecobra-price@main
+  uses: cameronbroe/misc-actions/cubecobra-price-checker@main
   with:
     cube_id: your-cube-id
 ```

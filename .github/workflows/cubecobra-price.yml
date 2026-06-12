@@ -24,6 +24,6 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Calculate cube total cost
-        uses: ./cubecobra-price
+        uses: ./cubecobra-price-checker
         with:
           cube_id: ${{ inputs.cube_id || 'd8b9e896-d66d-4cf8-9c59-f752d78d27ac' }}
