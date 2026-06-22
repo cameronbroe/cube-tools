@@ -57,7 +57,7 @@ This action requires [Docker](https://docs.docker.com/get-started/) to be availa
 
 ## Image Versioning
 
-This repository tracks the CubeCobra checker container version in `/home/runner/work/misc-actions/misc-actions/cubecobra-price-checker/image-version.txt`.
+This repository tracks the CubeCobra checker container version in `cubecobra-price-checker/image-version.txt`.
 
 - Update that file manually with a semver tag (for example `1.2.3`).
 - Run the `Build CubeCobra Price Checker Image` workflow to publish `ghcr.io/<owner>/cubecobra-price-checker:<version>`.

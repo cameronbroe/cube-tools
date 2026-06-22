@@ -9,6 +9,9 @@ on:
       - cubecobra-price-checker/**
       - .github/workflows/build-cubecobra-price-checker-image.yml
 
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/cubecobra-price-checker
+
 jobs:
   build-and-push:
     name: Build and push image
@@ -27,9 +30,10 @@ jobs:
       - name: Resolve image version
         id: version
         run: |
-          VERSION="$(tr -d '[:space:]' < ./cubecobra-price-checker/image-version.txt)"
+          VERSION_FILE="./cubecobra-price-checker/image-version.txt"
+          VERSION="$(tr -d '[:space:]' < "$VERSION_FILE")"
           if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "image-version.txt must contain a semver version like 1.2.3"
+            echo "$VERSION_FILE must contain a semver version like 1.2.3, but found: '$VERSION'"
             exit 1
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
@@ -50,4 +54,4 @@ jobs:
         with:
           context: ./cubecobra-price-checker
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/cubecobra-price-checker:${{ steps.version.outputs.version }}
+          tags: ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}
