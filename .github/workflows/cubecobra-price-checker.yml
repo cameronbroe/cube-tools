@@ -29,7 +29,7 @@ jobs:
 
       - name: Resolve image version
         run: |
-          VERSION_FILE="./cubecobra-price-checker/image-version.txt"
+          VERSION_FILE="./cubecobra-price-checker/.version"
           if [[ ! -f "$VERSION_FILE" ]]; then
             echo "Missing version file: $VERSION_FILE"
             exit 1
