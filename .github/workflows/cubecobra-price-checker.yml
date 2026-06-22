@@ -18,12 +18,27 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      packages: read
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Calculate cube total cost
-        uses: ./cubecobra-price-checker
+      - name: Resolve image version
+        run: echo "IMAGE_VERSION=$(tr -d '[:space:]' < ./cubecobra-price-checker/image-version.txt)" >> "$GITHUB_ENV"
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
         with:
-          cube_id: ${{ inputs.cube_id || 'd8b9e896-d66d-4cf8-9c59-f752d78d27ac' }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Calculate cube total cost
+        run: |
+          docker run --rm \
+            ghcr.io/${{ github.repository_owner }}/cubecobra-price-checker:${IMAGE_VERSION} \
+            "${{ inputs.cube_id || 'd8b9e896-d66d-4cf8-9c59-f752d78d27ac' }}" > summary.md
+
+      - name: Output summary
+        run: cat summary.md >> "$GITHUB_STEP_SUMMARY"
