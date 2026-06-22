@@ -1,0 +1,57 @@
+name: Build CubeCobra Price Checker Image
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - cubecobra-price-checker/**
+      - .github/workflows/build-cubecobra-price-checker-image.yml
+
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/cubecobra-price-checker
+
+jobs:
+  build-and-push:
+    name: Build and push image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Task
+        uses: go-task/setup-task@v1
+
+      - name: Resolve image version
+        id: version
+        run: |
+          VERSION_FILE="./cubecobra-price-checker/.version"
+          VERSION="$(tr -d '[:space:]' < "$VERSION_FILE")"
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "$VERSION_FILE must contain a semver version like 1.2.3, but found: '$VERSION'"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Download Scryfall bulk data
+        working-directory: ./cubecobra-price-checker
+        run: task -s download-data
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./cubecobra-price-checker
+          push: true
+          tags: ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}

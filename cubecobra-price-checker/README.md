@@ -54,3 +54,11 @@ This action requires [Docker](https://docs.docker.com/get-started/) to be availa
 - [go-task/setup-task](https://github.com/go-task/setup-task) — used internally to orchestrate the build and run steps.
 - [CubeCobra API](https://cubecobra.com/cube/api/cubeJSON) — fetches cube card lists.
 - [Scryfall Bulk Data API](https://scryfall.com/docs/api/bulk-data) — provides card price data.
+
+## Image Versioning
+
+This repository tracks the CubeCobra checker container version in `cubecobra-price-checker/.version`.
+
+- Update that file manually with a semver tag (for example `1.2.3`).
+- Run the `Build CubeCobra Price Checker Image` workflow to publish `ghcr.io/<owner>/cubecobra-price-checker:<version>`.
+- The scheduled CubeCobra workflow reads the same file and runs that exact pre-built image tag.
