@@ -3,7 +3,6 @@
 version: '3'
 
 vars:
-  SET_CODE: "lea"
   BINARY_PATH: './artisan-doubleton-generator'
 
 tasks:
@@ -17,9 +16,13 @@ tasks:
     cmd: go build -o "{{ .BINARY_PATH }}" ./...
   run:
     deps: [build]
+    requires:
+      vars: [SET_CODE]
     cmd: "{{ .BINARY_PATH }} {{ .SET_CODE }}"
   build-docker:
     cmd: docker build -t artisan-doubleton-generator .
   run-docker:
     deps: [build-docker]
+    requires:
+      vars: [SET_CODE]
     cmd: docker run --rm -v "${PWD}:/work" -w /work artisan-doubleton-generator {{ .SET_CODE }}
