@@ -19,7 +19,7 @@ runs:
           echo "github.action_path=${{ github.action_path }}"
           echo "Resolved action directory: $ACTION_DIR"
           echo "Current working directory: $(pwd)"
-          ls -la "$ACTION_DIR"
+          ls -la "$ACTION_DIR" 2>&1 || true
           exit 1
         fi
         IMAGE_VERSION="$(tr -d '[:space:]' < "$VERSION_FILE")"
