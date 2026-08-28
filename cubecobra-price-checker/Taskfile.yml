@@ -6,7 +6,7 @@ vars:
   CUBE_ID: "d8b9e896-d66d-4cf8-9c59-f752d78d27ac"
   BINARY_PATH: './cubecobra-price-checker'
   DEFAULT_BULK_DATA_API_URL: "https://api.scryfall.com/bulk-data/default-cards"
-  DEFAULT_BULK_DATA_PATH: DefaultCards.json
+  DEFAULT_BULK_DATA_PATH: DefaultCards.jsonl.gz
   DEFAULT_BULK_DATA_API_CONTENTS:
     sh: curl -s {{ .DEFAULT_BULK_DATA_API_URL }}
   DEFAULT_BULK_DATA_API_CONTENTS_PARSED:
@@ -26,7 +26,10 @@ tasks:
   download-data:
     status:
       - test -f {{ .DEFAULT_BULK_DATA_PATH }} && test ! $(find {{ .DEFAULT_BULK_DATA_PATH }} -mmin +720)
-    cmd: curl -o {{ .DEFAULT_BULK_DATA_PATH }} {{ .DEFAULT_BULK_DATA_API_CONTENTS_PARSED.download_uri }}
+    cmd: curl -o {{ .DEFAULT_BULK_DATA_PATH }} {{ .DEFAULT_BULK_DATA_API_CONTENTS_PARSED.jsonl_download_uri }}
+  decompress-data:
+    deps: [download-data]
+    cmd: gzip -fd {{ .DEFAULT_BULK_DATA_PATH }}
   build-docker:
     deps: [download-data]
     cmd: docker build -t cubecobra-price-checker .
