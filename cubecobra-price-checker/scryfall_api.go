@@ -1,12 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
 )
 
-const dataFilePath = "./DefaultCards.json"
+const dataFilePath = "./DefaultCards.jsonl"
 
 type ScryfallBulkData []*ScryfallCard
 
@@ -61,14 +62,23 @@ func loadScryfallCards() error {
 		return nil
 	}
 
-	fileContents, err := os.ReadFile(dataFilePath)
+	file, err := os.Open(dataFilePath)
 	if err != nil {
 		return err
 	}
+	defer file.Close()
 
-	err = json.Unmarshal(fileContents, &bulkData)
-	if err != nil {
-		return err
+	scanner := bufio.NewScanner(file)
+	maxCapacity := 256 * 1024
+	buf := make([]byte, maxCapacity)
+	scanner.Buffer(buf, maxCapacity)
+	for scanner.Scan() {
+		card := ScryfallCard{}
+		err = json.Unmarshal(scanner.Bytes(), &card)
+		if err != nil {
+			return err
+		}
+		bulkData = append(bulkData, &card)
 	}
 
 	bulkDataLoaded = true
