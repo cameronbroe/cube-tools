@@ -40,7 +40,7 @@ jobs:
 
       - name: Download Scryfall bulk data
         working-directory: ./cubecobra-price-checker
-        run: task -s download-data
+        run: task -s decompress-data
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3

@@ -21,7 +21,7 @@ tasks:
       - "{{ .BINARY_PATH }}"
     cmd: go build -o "{{ .BINARY_PATH }}" ./...
   run:
-    deps: [download-data, build]
+    deps: [decompress-data, build]
     cmd: "{{ .BINARY_PATH }} {{ .CUBE_ID }}"
   download-data:
     status:
@@ -31,7 +31,7 @@ tasks:
     deps: [download-data]
     cmd: gzip -fd {{ .DEFAULT_BULK_DATA_PATH }}
   build-docker:
-    deps: [download-data]
+    deps: [decompress-data]
     cmd: docker build -t cubecobra-price-checker .
   run-docker:
     deps: [build-docker]
